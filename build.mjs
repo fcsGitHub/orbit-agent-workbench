@@ -1,0 +1,8 @@
+import {build} from 'esbuild';import fs from 'node:fs';
+// 构建时从 keys.txt 读取真实 DeepSeek API key 并注入产物（仅本地离线使用）。
+// keys.txt 缺失时不阻塞构建：运行时会在“工具与能力 → 模型连接”提示填写真实密钥。
+let apiKey='';try{apiKey=(fs.readFileSync('keys.txt','utf8').match(/sk-[A-Za-z0-9]+/)||[''])[0];}catch(e){}
+if(!apiKey)console.warn('警告：keys.txt 未找到有效 API key（格式 sk-...）；构建产物需手动填写密钥');
+const result=await build({entryPoints:['src/main.jsx'],bundle:true,minify:true,format:'iife',write:false,target:['es2022'],loader:{'.png':'dataurl'},legalComments:'inline',define:{__DEEPSEEK_API_KEY__:JSON.stringify(apiKey)}});
+const js=result.outputFiles[0].text.replace(/<\/script/gi,'<\\/script');const css=fs.readFileSync('src/styles.css','utf8');
+fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/index.html',`<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>轨道 Agent 工作台</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%27-6 -6 36 36%27%3E%3Ccircle cx=%2712%27 cy=%2712%27 r=%275%27 fill=%27none%27 stroke=%27%233374d6%27 stroke-width=%272%27/%3E%3Cellipse cx=%2712%27 cy=%2712%27 rx=%2710%27 ry=%274%27 fill=%27none%27 stroke=%27%233374d6%27 stroke-width=%272%27 transform=%27rotate(-24 12 12)%27/%3E%3C/svg%3E"><meta name="description" content="通用 Agent 工作区与民用 Three.js 轨道仿真原型"><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`);console.log(`Built standalone dist/index.html (${fs.statSync('dist/index.html').size} bytes, DeepSeek key ${apiKey?'injected from keys.txt':'NOT SET'})`);
